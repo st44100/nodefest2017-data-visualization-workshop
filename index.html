@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.13.1/lodash.js'></script>
+  <link href='https://fonts.googleapis.com/css?family=Libre+Baskerville:400,700' rel='stylesheet' type='text/css'>
+
+  <style>
+    svg {
+      width: 600px;
+      height: 20000px;
+    }
+  </style>
+</head>
+
+<body>
+  <svg></svg>
+
+  <script>
+    const width = 600;
+    const height = 600;
+    const maxPetalSize = 600 / 2  -10;
+
+    const petalPath = [
+        'M0,0',
+        'C30,25 50,50 35,100',
+        'C10,85 -10,85, -20,100',
+        'C-50,50 -30,25, 0,0'
+    ];
+
+    const svg = d3.select(' svg');
+
+    /*****************************************************
+    ** get movie data
+    ******************************************************/
+
+    d3.json('movies.json', function(movies) {
+      console.log('raw', movies);
+      movies = _.map(movies, movie => {
+        return {
+          rating: ++movie.imdbRating,
+          votes: parseInt(movie.imdbVotes.replace(/\,/g, '')),
+          year: ++movie.Year,
+          title: movie.Title,
+          rated: movie.Rated
+        }
+      });
+
+      const voteExtent = d3.extent(movies, d => d.votes);
+      const ratingExtent = d3.extent(movies, d => d.rating);
+
+      const sizeScale = d3.scaleLinear()
+      .domain(voteExtent)
+      .range([0.1, 1.5]);
+
+
+      const numOfPetalsScale = d3.scaleQuantize()
+      .domain(ratingExtent)
+      .range(_.range(5, 12));
+
+      var flowerScale = d3.scaleLinear()
+  			.domain(ratingExtent)
+  			.range([0.1, 1.5]);
+
+      const minedMovies = movies.map((m) => {
+        const numOfPetals = numOfPetalsScale(m.rating);
+        const petal = {
+          numPetals: numOfPetals,
+          rated: m.rated
+        };
+        return Object.assign(m, {
+          size: sizeScale(m.votes),
+          numPetals: _.times(numOfPetals, () => petal)
+        });
+      });
+
+      console.log(minedMovies);
+
+      var flowers = svg.selectAll('g')
+      .data(minedMovies).enter().append('g')
+      .attr('transform', (d, i) => {
+        const x = (i % 3 + 0.5) * 200;
+        const y = (Math.floor(i/3) + 0.5) * 200;
+        return `translate(${x}, ${y})`;
+        });
+
+      var petals = flowers.selectAll('path')
+      .data(d => d.numPetals).enter().append('path')
+      .attr('d', petalPath)
+      .attr('fill', 'none')
+      .attr('stroke', '#000')
+      .attr('stroke', (petal) => {
+        console.log(petal);
+        switch(petal.rated) {
+          case 'PG':
+            return 'rgba(155, 0, 0, 1)'
+          case 'PG-13':
+            return 'rgba(155, 155, 0, 1)'
+          case 'R':
+            return 'rgba(0, 155, 155, 1)'
+          default:
+          	return 'rgba(0, 0, 0, 1)';
+        }
+      })
+      .attr('transform', (petal, i) => {
+        const angle = 360 / petal.numPetals * i;
+        return `rotate(${angle})`;
+       });
+
+
+    });
+
+  </script>
+</body>
